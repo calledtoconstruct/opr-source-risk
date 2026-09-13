@@ -16,6 +16,9 @@ python3 -m opr_source_risk scan --git https://github.com/org/app.git --ref v1.2.
 python3 -m opr_source_risk checks list
 ```
 
+Host CLI: `bin/opr-source-risk` (`scan --dir` / `scan --git`, `checks list`).
+Checks are subprocesses; the host does not embed detectors.
+
 Python `bind()` uses the stdlib AST (`confidence: ast`). systemd, nginx, and
 Compose ports are parsed as config. Go/C still use regex until a tree-sitter
 pack is added. tree-sitter is not a dependency yet.

@@ -1,0 +1,6 @@
+pkgname=fixture
+pkgver=1
+pkgrel=1
+arch=('x86_64')
+source=("https://example.test/app.bin")
+sha256sums=('SKIP')

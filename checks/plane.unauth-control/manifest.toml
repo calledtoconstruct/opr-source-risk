@@ -1,0 +1,5 @@
+id = "plane.unauth-control"
+facet = "plane.unauth-control"
+summary = "/metrics /admin /debug routes without nearby auth"
+timeout_sec = 30
+needs_class = ["source"]

@@ -1,0 +1,5 @@
+id = "persist.lingering-unit"
+facet = "persist.lingering-unit"
+summary = "systemd unit installed without a remove hook"
+timeout_sec = 30
+needs_class = ["config", "source", "other"]

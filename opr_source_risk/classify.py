@@ -24,7 +24,18 @@ CONFIG_NAMES = {
     "nginx.conf",
     "caddyfile",
 }
-CONFIG_SUFFIXES = {".service", ".socket", ".yml", ".yaml", ".toml", ".json", ".conf", ".pkla"}
+CONFIG_SUFFIXES = {
+    ".service",
+    ".socket",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".json",
+    ".conf",
+    ".pkla",
+    ".env",
+    ".install",
+}
 SOURCE_SUFFIXES = {".go", ".py", ".rs", ".c", ".cc", ".cpp", ".h", ".js", ".ts", ".java", ".sh"}
 DOC_SUFFIXES = {".md", ".rst", ".txt", ".adoc"}
 

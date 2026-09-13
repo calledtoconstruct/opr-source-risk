@@ -1,0 +1,8 @@
+pkgname=fixture
+pkgver=1
+pkgrel=1
+arch=('x86_64')
+
+package() {
+  install -Dm644 app.service "$pkgdir/usr/lib/systemd/system/app.service"
+}

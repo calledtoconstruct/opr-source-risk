@@ -81,6 +81,42 @@ class ScanFixtures(unittest.TestCase):
         facets = {f["facet"] for f in report["findings"]}
         self.assertIn("install.curl-pipe-shell", facets)
 
+    def test_root_service_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "root-service", ref="test", pkgname="fixture")
+        self.assertIn("priv.root-service", {f["facet"] for f in report["findings"]})
+
+    def test_container_escape_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "container-escape", ref="test", pkgname="fixture")
+        self.assertIn("priv.container-escape", {f["facet"] for f in report["findings"]})
+
+    def test_setuid_caps_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "setuid-caps", ref="test", pkgname="fixture")
+        self.assertIn("priv.setuid-or-caps", {f["facet"] for f in report["findings"]})
+
+    def test_debug_in_release_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "debug-release", ref="test", pkgname="fixture")
+        self.assertIn("plane.debug-in-release", {f["facet"] for f in report["findings"]})
+
+    def test_weak_default_secret_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "weak-default", ref="test", pkgname="fixture")
+        self.assertIn("secret.weak-default", {f["facet"] for f in report["findings"]})
+
+    def test_lingering_unit_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "lingering-unit", ref="test", pkgname="fixture")
+        self.assertIn("persist.lingering-unit", {f["facet"] for f in report["findings"]})
+
+    def test_unsigned_fetch_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "unsigned-fetch", ref="test", pkgname="fixture")
+        self.assertIn("install.unsigned-fetch", {f["facet"] for f in report["findings"]})
+
+    def test_sensitive_write_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "sensitive-write", ref="test", pkgname="fixture")
+        self.assertIn("fs.sensitive-write", {f["facet"] for f in report["findings"]})
+
+    def test_unauth_metrics_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "unauth-metrics", ref="test", pkgname="fixture")
+        self.assertIn("plane.unauth-control", {f["facet"] for f in report["findings"]})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,5 @@
+id = "priv.setuid-or-caps"
+facet = "priv.setuid-or-caps"
+summary = "setcap or chmod u+s"
+timeout_sec = 30
+needs_class = ["source", "config", "other"]

@@ -345,3 +345,229 @@ def curl_pipe_shell(text: str, path: str = "") -> list[Finding]:
                 )
             )
     return out
+
+
+_USER_ROOT = re.compile(r"^User\s*=\s*root\s*$", re.I | re.M)
+_DYNAMIC_USER = re.compile(r"^DynamicUser\s*=\s*yes\s*$", re.I | re.M)
+_PRIVILEGED = re.compile(r"privileged\s*:\s*true", re.I)
+_DOCKER_SOCK = re.compile(r"/var/run/docker\.sock")
+_HOST_PID = re.compile(r"hostPID\s*:\s*true|pid:\s*host", re.I)
+_HOST_NET = re.compile(r"hostNetwork\s*:\s*true|network_mode\s*:\s*[\"']?host", re.I)
+_CAP_SYS_ADMIN = re.compile(r"SYS_ADMIN|CAP_SYS_ADMIN")
+_SETCAP = re.compile(r"\bsetcap\b")
+_SETUID = re.compile(r"chmod\s+(?:u\+s|4755|4751|4711)\b")
+_DEBUG = re.compile(
+    r"\b(DEBUG|APP_DEBUG)\s*[=:]\s*(True|true|1)\b|pprof\.Start|gin\.SetMode\(\s*gin\.DebugMode"
+)
+_WEAK = re.compile(
+    r"(SECRET|PASSWORD|TOKEN|JWT)[A-Z0-9_]*\s*[=:]\s*[\"']?(changeme|password|secret|admin|1234)?[\"']?\s*$",
+    re.I,
+)
+_SENSITIVE = re.compile(
+    r"(install|cp|mv|tee|cat\s*>)\s+[^\n]*(/etc/|/root/|/usr/|/boot/)"
+)
+_METRICS_ROUTE = re.compile(
+    r"""@(?:app|bp|router)\.route\(\s*[\"'](/metrics|/debug|/admin|/pprof)"""
+)
+_AUTH_HINT = re.compile(r"login_required|require_auth|Authorization|auth_required|Depends\(\s*auth", re.I)
+_SYSTEMD_INSTALL = re.compile(
+    r"systemd/system/[^\"'\s]+\.service|usr/lib/systemd"
+)
+_HTTPS_SOURCE = re.compile(r"https?://[^\s\"')]+")
+
+
+def root_service(text: str, path: str = "") -> list[Finding]:
+    if not path.endswith(".service"):
+        return []
+    if _USER_ROOT.search(text) and not _DYNAMIC_USER.search(text):
+        for i, line in enumerate(text.splitlines(), 1):
+            if _USER_ROOT.match(line.strip()):
+                return [
+                    _finding(
+                        "priv.root-service",
+                        "systemd unit runs as root",
+                        line=i,
+                        evidence=line,
+                        confidence="config",
+                        path=path,
+                    )
+                ]
+    return []
+
+
+def container_escape(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if _PRIVILEGED.search(line) or _DOCKER_SOCK.search(line) or _HOST_PID.search(line) or (
+            _HOST_NET.search(line) and "ports" not in line
+        ) or _CAP_SYS_ADMIN.search(line):
+            out.append(
+                _finding(
+                    "priv.container-escape",
+                    "Container config allows host escape or host network/pid",
+                    line=i,
+                    evidence=line,
+                    confidence="config",
+                    path=path,
+                )
+            )
+    return out
+
+
+def setuid_or_caps(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if _SETCAP.search(line) or _SETUID.search(line):
+            out.append(
+                _finding(
+                    "priv.setuid-or-caps",
+                    "setuid bit or extra file capabilities",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                )
+            )
+    return out
+
+
+def debug_in_release(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if line.strip().startswith("#"):
+            continue
+        if _DEBUG.search(line):
+            out.append(
+                _finding(
+                    "plane.debug-in-release",
+                    "Debug mode or pprof enabled in non-example config",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                    severity="medium",
+                )
+            )
+    return out
+
+
+def weak_default_secret(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        m = _WEAK.search(line)
+        if not m:
+            continue
+        val = (m.group(2) or "").lower()
+        if val in {"", "changeme", "password", "secret", "admin", "1234"}:
+            out.append(
+                _finding(
+                    "secret.weak-default",
+                    "Weak or placeholder secret in config",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                )
+            )
+    return out
+
+
+def sensitive_write(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if "$pkgdir" in line:
+            continue
+        if _SENSITIVE.search(line):
+            out.append(
+                _finding(
+                    "fs.sensitive-write",
+                    "Install or copy into a sensitive host path",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                )
+            )
+    return out
+
+
+def unauth_control_route(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not _METRICS_ROUTE.search(line):
+            continue
+        window = "\n".join(lines[i : i + 12])
+        if _AUTH_HINT.search(window):
+            continue
+        out.append(
+            _finding(
+                "plane.unauth-control",
+                "Control/debug/metrics route has no nearby auth",
+                line=i + 1,
+                evidence=line,
+                confidence="heuristic",
+                path=path,
+                severity="medium",
+            )
+        )
+    return out
+
+
+def lingering_systemd_unit(files: dict[str, str]) -> list[Finding]:
+    """files: relative path -> text. Join install vs remove."""
+    installs: list[tuple[str, int, str]] = []
+    removes = False
+    for path, text in files.items():
+        name = path.lower()
+        if name.endswith(".install") or "post_remove" in name or "pre_remove" in name:
+            if re.search(r"systemctl|systemd|\.service", text, re.I):
+                removes = True
+        for i, line in enumerate(text.splitlines(), 1):
+            if _SYSTEMD_INSTALL.search(line):
+                installs.append((path, i, line))
+        if re.search(r"^remove\(\)|post_remove", text, re.M) and re.search(
+            r"systemd|\.service", text
+        ):
+            removes = True
+    if removes:
+        return []
+    return [
+        _finding(
+            "persist.lingering-unit",
+            "systemd unit is installed with no matching remove",
+            line=line,
+            evidence=evidence,
+            confidence="config",
+            path=path,
+        )
+        for path, line, evidence in installs
+    ]
+
+
+def unsigned_fetch(text: str, path: str = "") -> list[Finding]:
+    if not path.endswith("PKGBUILD") and "PKGBUILD" not in path:
+        return []
+    sources = _HTTPS_SOURCE.findall(text)
+    if not sources:
+        return []
+    skip = bool(re.search(r"sha256sums\s*=\s*\([^\)]*SKIP", text, re.S | re.I))
+    missing = not re.search(r"sha256sums\s*=", text, re.I) and not re.search(
+        r"b2sums\s*=", text, re.I
+    )
+    if not skip and not missing:
+        return []
+    for i, line in enumerate(text.splitlines(), 1):
+        if "source=" in line or "https://" in line:
+            return [
+                _finding(
+                    "install.unsigned-fetch",
+                    "Remote source with SKIP or missing checksums",
+                    line=i,
+                    evidence=line,
+                    confidence="config",
+                    path=path,
+                )
+            ]
+    return []
+

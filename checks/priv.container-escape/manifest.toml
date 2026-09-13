@@ -1,0 +1,5 @@
+id = "priv.container-escape"
+facet = "priv.container-escape"
+summary = "privileged, docker.sock, host PID/network"
+timeout_sec = 30
+needs_class = ["config"]

@@ -1,0 +1,5 @@
+id = "priv.root-service"
+facet = "priv.root-service"
+summary = "systemd User=root"
+timeout_sec = 30
+needs_class = ["config"]

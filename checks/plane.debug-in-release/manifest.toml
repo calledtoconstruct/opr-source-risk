@@ -1,0 +1,5 @@
+id = "plane.debug-in-release"
+facet = "plane.debug-in-release"
+summary = "DEBUG=True or pprof in production-shaped config"
+timeout_sec = 30
+needs_class = ["source", "config"]

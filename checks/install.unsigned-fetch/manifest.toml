@@ -1,0 +1,5 @@
+id = "install.unsigned-fetch"
+facet = "install.unsigned-fetch"
+summary = "https source with SKIP or missing checksums"
+timeout_sec = 30
+needs_class = ["config"]

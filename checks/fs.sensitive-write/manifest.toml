@@ -1,0 +1,5 @@
+id = "fs.sensitive-write"
+facet = "fs.sensitive-write"
+summary = "install/cp into /etc /root /usr /boot (not $pkgdir)"
+timeout_sec = 30
+needs_class = ["source", "config", "other"]

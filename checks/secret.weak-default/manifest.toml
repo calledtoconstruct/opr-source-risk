@@ -1,0 +1,5 @@
+id = "secret.weak-default"
+facet = "secret.weak-default"
+summary = "changeme/password/empty JWT or admin secrets"
+timeout_sec = 30
+needs_class = ["source", "config", "other"]
