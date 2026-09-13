@@ -117,6 +117,38 @@ class ScanFixtures(unittest.TestCase):
         report = scan_dir(ROOT / "testdata" / "unauth-metrics", ref="test", pkgname="fixture")
         self.assertIn("plane.unauth-control", {f["facet"] for f in report["findings"]})
 
+    def test_plaintext_control_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "plaintext-control", ref="test", pkgname="fixture")
+        self.assertIn("net.plaintext-control", {f["facet"] for f in report["findings"]})
+
+    def test_upnp_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "upnp", ref="test", pkgname="fixture")
+        self.assertIn("net.upnp-or-holepunch", {f["facet"] for f in report["findings"]})
+
+    def test_firewall_open_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "firewall-open", ref="test", pkgname="fixture")
+        self.assertIn("net.firewall-open", {f["facet"] for f in report["findings"]})
+
+    def test_outbound_telemetry_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "telemetry", ref="test", pkgname="fixture")
+        self.assertIn("net.outbound-unexpected", {f["facet"] for f in report["findings"]})
+
+    def test_shared_listener_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "shared-listener", ref="test", pkgname="fixture")
+        self.assertIn("plane.shared-listener", {f["facet"] for f in report["findings"]})
+
+    def test_shared_credentials_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "shared-credentials", ref="test", pkgname="fixture")
+        self.assertIn("plane.shared-credentials", {f["facet"] for f in report["findings"]})
+
+    def test_predictable_tmp_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "predictable-tmp", ref="test", pkgname="fixture")
+        self.assertIn("fs.predictable-tmp", {f["facet"] for f in report["findings"]})
+
+    def test_lingering_listen_fires(self) -> None:
+        report = scan_dir(ROOT / "testdata" / "lingering-listen", ref="test", pkgname="fixture")
+        self.assertIn("persist.lingering-listen", {f["facet"] for f in report["findings"]})
+
 
 if __name__ == "__main__":
     unittest.main()

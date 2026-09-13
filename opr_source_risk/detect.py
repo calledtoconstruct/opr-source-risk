@@ -373,6 +373,34 @@ _AUTH_HINT = re.compile(r"login_required|require_auth|Authorization|auth_require
 _SYSTEMD_INSTALL = re.compile(
     r"systemd/system/[^\"'\s]+\.service|usr/lib/systemd"
 )
+_SYSTEMD_SOCKET = re.compile(
+    r"systemd/system/[^\"'\s]+\.socket|ListenStream\s*="
+)
+_UPNP = re.compile(
+    r"\bminiupnpc\b|\bnatpmp\b|\bNAT-PMP\b|\bUPnP\b|\bholepunch\b|\bIGD\b",
+    re.I,
+)
+_FIREWALL_OPEN = re.compile(
+    r"iptables\s+.*\s-j\s+ACCEPT|ufw\s+allow|firewall-cmd\s+.*--add-port",
+    re.I,
+)
+_TELEMETRY = re.compile(
+    r"sentry_sdk\.init|SENTRY_DSN|TELEMETRY_ENABLED\s*=\s*True|crashlytics|mixpanel|segment\.init",
+    re.I,
+)
+_USER_ROUTE = re.compile(
+    r"""@(?:app|bp|router)\.route\(\s*[\"'](/(?!admin(?:/|$)|debug(?:/|$)|metrics(?:/|$)|pprof)[^\"']*)[\"']"""
+)
+_CONTROL_ROUTE = re.compile(
+    r"""@(?:app|bp|router)\.route\(\s*[\"'](/(?:admin|debug|metrics|pprof)[^\"']*)[\"']"""
+)
+_ADMIN_BIND = re.compile(r"\badmin_(?:db_url|token|key|secret|password)\s*=\s*(\S+)", re.I)
+_TENANT_BIND = re.compile(r"\b(?:tenant|user|app)_(?:db_url|token|key|secret|password)\s*=\s*(\S+)", re.I)
+_TMP_FIXED = re.compile(r"""(?:Path|open|bind)\(\s*[\"']/tmp/[^\"']+[\"']""")
+_INSECURE_TLS = re.compile(r"InsecureSkipVerify\s*[:=]\s*true|ssl_verify\s*[:=]\s*false|verify\s*=\s*False", re.I)
+_NGINX_ADMIN = re.compile(r"location\s+/admin", re.I)
+_NGINX_LISTEN80 = re.compile(r"listen\s+80\b", re.I)
+_NGINX_SSL = re.compile(r"listen\s+443|ssl\s+on", re.I)
 _HTTPS_SOURCE = re.compile(r"https?://[^\s\"')]+")
 
 
@@ -570,4 +598,178 @@ def unsigned_fetch(text: str, path: str = "") -> list[Finding]:
                 )
             ]
     return []
+
+
+def plaintext_control(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    if _NGINX_LISTEN80.search(text) and _NGINX_ADMIN.search(text) and not _NGINX_SSL.search(text):
+        for i, line in enumerate(text.splitlines(), 1):
+            if _NGINX_ADMIN.search(line) or _NGINX_LISTEN80.search(line):
+                out.append(
+                    _finding(
+                        "net.plaintext-control",
+                        "Control plane served over plaintext HTTP",
+                        line=i,
+                        evidence=line,
+                        confidence="config",
+                        path=path,
+                    )
+                )
+                break
+    for i, line in enumerate(text.splitlines(), 1):
+        if _INSECURE_TLS.search(line):
+            out.append(
+                _finding(
+                    "net.plaintext-control",
+                    "TLS verification disabled on a client/server",
+                    line=i,
+                    evidence=line,
+                    confidence="config",
+                    path=path,
+                )
+            )
+    return out
+
+
+def upnp_or_holepunch(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if _UPNP.search(line):
+            out.append(
+                _finding(
+                    "net.upnp-or-holepunch",
+                    "UPnP, NAT-PMP, or hole punching",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                )
+            )
+    return out
+
+
+def firewall_open(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if _FIREWALL_OPEN.search(line):
+            out.append(
+                _finding(
+                    "net.firewall-open",
+                    "Firewall rule opens inbound traffic",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                )
+            )
+    return out
+
+
+def outbound_unexpected(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if _TELEMETRY.search(line):
+            out.append(
+                _finding(
+                    "net.outbound-unexpected",
+                    "Default-on telemetry or crash reporter",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                    severity="medium",
+                )
+            )
+    return out
+
+
+def shared_listener(text: str, path: str = "") -> list[Finding]:
+    user = _USER_ROUTE.search(text)
+    control = _CONTROL_ROUTE.search(text)
+    if not (user and control):
+        return []
+    line = text[: control.start()].count("\n") + 1
+    return [
+        _finding(
+            "plane.shared-listener",
+            "User traffic and control routes share one listener",
+            line=line,
+            evidence=control.group(0),
+            confidence="heuristic",
+            path=path,
+            severity="medium",
+        )
+    ]
+
+
+def shared_credentials(text: str, path: str = "") -> list[Finding]:
+    admins = {m.group(1).rstrip(",") for m in _ADMIN_BIND.finditer(text)}
+    tenants = {m.group(1).rstrip(",") for m in _TENANT_BIND.finditer(text)}
+    shared = admins & tenants
+    if not shared:
+        return []
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if any(val in line for val in shared) and (
+            _ADMIN_BIND.search(line) or _TENANT_BIND.search(line)
+        ):
+            out.append(
+                _finding(
+                    "plane.shared-credentials",
+                    "Admin and tenant/user credentials share one secret",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                    severity="medium",
+                )
+            )
+    return out
+
+
+def predictable_tmp(text: str, path: str = "") -> list[Finding]:
+    out: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if _TMP_FIXED.search(line) and "mkstemp" not in line and "NamedTemporaryFile" not in line:
+            out.append(
+                _finding(
+                    "fs.predictable-tmp",
+                    "Fixed path under /tmp",
+                    line=i,
+                    evidence=line,
+                    confidence="heuristic",
+                    path=path,
+                    severity="medium",
+                )
+            )
+    return out
+
+
+def lingering_listen(files: dict[str, str]) -> list[Finding]:
+    installs: list[tuple[str, int, str]] = []
+    removes = False
+    for path, text in files.items():
+        name = path.lower()
+        if name.endswith(".install") or "post_remove" in name or "pre_remove" in name:
+            if re.search(r"systemctl|systemd|\.socket|ListenStream", text, re.I):
+                removes = True
+        for i, line in enumerate(text.splitlines(), 1):
+            if _SYSTEMD_SOCKET.search(line) and (
+                ".socket" in line or "ListenStream" in line or "systemd/system" in line
+            ):
+                installs.append((path, i, line))
+    if removes:
+        return []
+    return [
+        _finding(
+            "persist.lingering-listen",
+            "Listen socket is installed with no matching remove",
+            line=line,
+            evidence=evidence,
+            confidence="config",
+            path=path,
+        )
+        for path, line, evidence in installs
+    ]
+
 

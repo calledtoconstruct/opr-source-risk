@@ -1,0 +1,5 @@
+id = "plane.shared-credentials"
+facet = "plane.shared-credentials"
+summary = "Admin and tenant share one secret"
+timeout_sec = 30
+needs_class = ["source", "config"]

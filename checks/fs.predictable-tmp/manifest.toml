@@ -1,0 +1,5 @@
+id = "fs.predictable-tmp"
+facet = "fs.predictable-tmp"
+summary = "Fixed path under /tmp"
+timeout_sec = 30
+needs_class = ["source"]

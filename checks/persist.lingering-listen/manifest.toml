@@ -1,0 +1,5 @@
+id = "persist.lingering-listen"
+facet = "persist.lingering-listen"
+summary = "systemd socket/ListenStream without remove"
+timeout_sec = 30
+needs_class = ["config", "source", "other"]

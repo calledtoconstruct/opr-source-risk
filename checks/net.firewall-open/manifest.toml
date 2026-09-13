@@ -1,0 +1,5 @@
+id = "net.firewall-open"
+facet = "net.firewall-open"
+summary = "iptables/ufw inbound ACCEPT/allow"
+timeout_sec = 30
+needs_class = ["source", "config", "other"]

@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from opr_source_risk.check_cli import emit_per_file
+from opr_source_risk.detect import upnp_or_holepunch
+
+emit_per_file("net.upnp-or-holepunch", upnp_or_holepunch)

@@ -1,0 +1,5 @@
+id = "net.outbound-unexpected"
+facet = "net.outbound-unexpected"
+summary = "Sentry/telemetry/crash reporter default-on"
+timeout_sec = 30
+needs_class = ["source", "config"]

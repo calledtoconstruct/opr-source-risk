@@ -1,0 +1,5 @@
+id = "net.plaintext-control"
+facet = "net.plaintext-control"
+summary = "Control plane over HTTP or TLS verify off"
+timeout_sec = 30
+needs_class = ["config", "source"]

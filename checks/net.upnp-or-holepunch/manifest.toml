@@ -1,0 +1,5 @@
+id = "net.upnp-or-holepunch"
+facet = "net.upnp-or-holepunch"
+summary = "UPnP, NAT-PMP, hole punching"
+timeout_sec = 30
+needs_class = ["source", "config"]
