@@ -1,0 +1,5 @@
+id = "priv.sudoers-or-polkit"
+facet = "priv.sudoers-or-polkit"
+summary = "Passwordless sudo or broad polkit"
+timeout_sec = 30
+needs_class = ["config", "source", "other"]

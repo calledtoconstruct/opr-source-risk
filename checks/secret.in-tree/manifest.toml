@@ -1,0 +1,5 @@
+id = "secret.in-tree"
+facet = "secret.in-tree"
+summary = "Private keys or cloud access keys in the tree"
+timeout_sec = 30
+needs_class = ["source", "config", "other"]

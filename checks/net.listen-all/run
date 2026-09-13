@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+import json
+import re
+import sys
+from pathlib import Path
+
+PATTERNS = [
+    re.compile(r"0\.0\.0\.0"),
+    re.compile(r"INADDR_ANY"),
+    re.compile(r"ListenAndServe\(\s*\":"),
+    re.compile(r"ListenStream\s*=\s*0\.0\.0\.0"),
+    re.compile(r"hostNetwork:\s*true"),
+    re.compile(r"\[::\]"),
+]
+
+payload = json.load(sys.stdin)
+root = Path(payload["root"])
+findings = []
+for rel in payload.get("files") or []:
+    path = root / rel
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    for i, line in enumerate(text.splitlines(), 1):
+        if "127.0.0.1" in line:
+            continue
+        for pat in PATTERNS:
+            m = pat.search(line)
+            if m:
+                findings.append(
+                    {
+                        "facet": "net.listen-all",
+                        "title": "Binds or listens on all interfaces",
+                        "severity": "high",
+                        "confidence": "heuristic",
+                        "path": rel,
+                        "line": i,
+                        "evidence": line.strip()[:240],
+                    }
+                )
+                break
+json.dump({"check_id": "net.listen-all", "status": "ok", "findings": findings}, sys.stdout)

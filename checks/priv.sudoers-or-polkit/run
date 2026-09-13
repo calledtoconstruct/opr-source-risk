@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+import json
+import re
+import sys
+from pathlib import Path
+
+NOPASSWD = re.compile(r"NOPASSWD")
+POLKIT = re.compile(r"ResultActive\s*=\s*yes")
+
+payload = json.load(sys.stdin)
+root = Path(payload["root"])
+findings = []
+for rel in payload.get("files") or []:
+    path = root / rel
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    for i, line in enumerate(text.splitlines(), 1):
+        if NOPASSWD.search(line) or (
+            "sudoers" in rel.lower() and POLKIT.search(line)
+        ) or POLKIT.search(line) and "polkit" in rel.lower():
+            findings.append(
+                {
+                    "facet": "priv.sudoers-or-polkit",
+                    "title": "Passwordless sudo or broad polkit grant",
+                    "severity": "high",
+                    "confidence": "config",
+                    "path": rel,
+                    "line": i,
+                    "evidence": line.strip()[:240],
+                }
+            )
+json.dump({"check_id": "priv.sudoers-or-polkit", "status": "ok", "findings": findings}, sys.stdout)

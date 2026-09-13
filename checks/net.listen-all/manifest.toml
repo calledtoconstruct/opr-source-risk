@@ -1,0 +1,5 @@
+id = "net.listen-all"
+facet = "net.listen-all"
+summary = "Listen/bind on all interfaces (0.0.0.0, ::, INADDR_ANY)"
+timeout_sec = 30
+needs_class = ["source", "config"]
