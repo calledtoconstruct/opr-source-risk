@@ -4,13 +4,13 @@ import re
 import sys
 from pathlib import Path
 
-PATTERNS = [
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from opr_source_risk.detect import compose_ports, nginx_listen, python_bind_all, systemd_listen
+
+GO = [
+    re.compile(r"ListenAndServe\(\s*\":"),
     re.compile(r"0\.0\.0\.0"),
     re.compile(r"INADDR_ANY"),
-    re.compile(r"ListenAndServe\(\s*\":"),
-    re.compile(r"ListenStream\s*=\s*0\.0\.0\.0"),
-    re.compile(r"hostNetwork:\s*true"),
-    re.compile(r"\[::\]"),
 ]
 
 payload = json.load(sys.stdin)
@@ -22,13 +22,23 @@ for rel in payload.get("files") or []:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         continue
-    for i, line in enumerate(text.splitlines(), 1):
-        if "127.0.0.1" in line:
-            continue
-        for pat in PATTERNS:
-            m = pat.search(line)
-            if m:
-                findings.append(
+    name = path.name.lower()
+    suffix = path.suffix.lower()
+    chunk = []
+    if suffix == ".py":
+        chunk = python_bind_all(text, rel)
+    elif suffix in {".service", ".socket"}:
+        chunk = systemd_listen(text, rel)
+    elif name in {"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}:
+        chunk = compose_ports(text, rel)
+    elif name == "nginx.conf" or suffix == ".conf":
+        chunk = nginx_listen(text, rel)
+    elif suffix in {".go", ".c", ".cc", ".cpp", ".rs"}:
+        for i, line in enumerate(text.splitlines(), 1):
+            if "127.0.0.1" in line:
+                continue
+            if any(p.search(line) for p in GO):
+                chunk.append(
                     {
                         "facet": "net.listen-all",
                         "title": "Binds or listens on all interfaces",
@@ -39,5 +49,5 @@ for rel in payload.get("files") or []:
                         "evidence": line.strip()[:240],
                     }
                 )
-                break
+    findings.extend(chunk)
 json.dump({"check_id": "net.listen-all", "status": "ok", "findings": findings}, sys.stdout)

@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from opr_source_risk.detect import (
+    compose_ports,
+    nginx_listen,
+    python_bind_privileged,
+    systemd_listen,
+)
+
+payload = json.load(sys.stdin)
+root = Path(payload["root"])
+findings = []
+for rel in payload.get("files") or []:
+    path = root / rel
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    name = path.name.lower()
+    suffix = path.suffix.lower()
+    chunk = []
+    if suffix == ".py":
+        chunk = python_bind_privileged(text, rel)
+    elif suffix in {".service", ".socket"}:
+        chunk = systemd_listen(text, rel)
+    elif name.startswith("docker-compose") or name in {"compose.yml", "compose.yaml"}:
+        chunk = compose_ports(text, rel)
+    elif name == "nginx.conf" or suffix == ".conf":
+        chunk = nginx_listen(text, rel)
+    findings.extend([f for f in chunk if f["facet"] == "net.listen-privileged-port"])
+json.dump(
+    {"check_id": "net.listen-privileged-port", "status": "ok", "findings": findings},
+    sys.stdout,
+)

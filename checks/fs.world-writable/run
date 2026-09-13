@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from opr_source_risk.detect import chmod_world
+
+payload = json.load(sys.stdin)
+root = Path(payload["root"])
+findings = []
+for rel in payload.get("files") or []:
+    path = root / rel
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    findings.extend(chmod_world(text, rel))
+json.dump({"check_id": "fs.world-writable", "status": "ok", "findings": findings}, sys.stdout)

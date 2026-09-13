@@ -1,0 +1,6 @@
+[Unit]
+Description=fixture
+
+[Service]
+ExecStart=/usr/bin/app
+ListenStream=0.0.0.0:8080

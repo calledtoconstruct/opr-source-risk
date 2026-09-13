@@ -1,0 +1,5 @@
+id = "net.listen-privileged-port"
+facet = "net.listen-privileged-port"
+summary = "Listen on TCP/UDP port below 1024"
+timeout_sec = 30
+needs_class = ["source", "config"]

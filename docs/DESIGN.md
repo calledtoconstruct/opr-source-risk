@@ -3,7 +3,8 @@
 Deterministic Linux CLI. Checks are executables + `manifest.toml` so a new
 risk does not require a host refactor.
 
-v1 techniques: regex (heuristic) and config/filename class. tree-sitter and
+v1 techniques: Python stdlib AST for `bind()`, systemd/nginx/Compose
+parsers (`confidence: config`), regex for Go/C. tree-sitter and
 optional LLM refine (`confidence: llm`, evidence must be a substring of the
 file) are later packs. LLM is off by default; never the only detector.
 

@@ -1,0 +1,5 @@
+id = "fs.world-writable"
+facet = "fs.world-writable"
+summary = "chmod 777 / world-writable install paths"
+timeout_sec = 30
+needs_class = ["source", "config", "other"]

@@ -1,0 +1,5 @@
+id = "install.curl-pipe-shell"
+facet = "install.curl-pipe-shell"
+summary = "curl piped into sh/bash in install recipes"
+timeout_sec = 30
+needs_class = ["source", "config", "other"]

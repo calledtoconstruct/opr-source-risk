@@ -16,6 +16,10 @@ python3 -m opr_source_risk scan --git https://github.com/org/app.git --ref v1.2.
 python3 -m opr_source_risk checks list
 ```
 
+Python `bind()` uses the stdlib AST (`confidence: ast`). systemd, nginx, and
+Compose ports are parsed as config. Go/C still use regex until a tree-sitter
+pack is added. tree-sitter is not a dependency yet.
+
 ## Add a check
 
 Drop a directory under `checks/` with `manifest.toml` and an executable `run`
